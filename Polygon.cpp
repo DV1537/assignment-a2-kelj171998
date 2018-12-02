@@ -9,11 +9,11 @@ Polygon::Polygon(double* coordinates) {
 
 Polygon::Polygon(double* coordinates, const int numOfCoordinates) {
 	this->coordinates = coordinates;
-	this->numOfCoordinates = numOfCoordinates;
+	this->numOfElements = numOfCoordinates;
 }
 
 Polygon::~Polygon() {
-	
+	delete[] tempCoords;
 }
 
 std::string Polygon::getType() const {
@@ -23,7 +23,7 @@ std::string Polygon::getType() const {
 double Polygon::area() {
 
 	// Separate x and y coordinates into two arrays
-	int halfSize = numOfCoordinates / 2;
+	int halfSize = numOfElements / 2;
 	double* arrX = new double[halfSize];
 	double* arrY = new double[halfSize];
 
@@ -61,7 +61,7 @@ double Polygon::area() {
 double Polygon::circumference() {
 
 	// Separate x and y coordinates into two arrays
-	int halfSize = numOfCoordinates / 2;
+	int halfSize = numOfElements / 2;
 	double* coordX = new double[halfSize];
 	double* coordY = new double[halfSize];
 
@@ -90,7 +90,7 @@ double Polygon::circumference() {
 Polygon::Vertex Polygon::position() {
 
 	// Separate x and y coordinates into two arrays
-	int halfSize = numOfCoordinates / 2;
+	int halfSize = numOfElements / 2;
 	double* coordX = new double[halfSize];
 	double* coordY = new double[halfSize];
 
@@ -137,13 +137,20 @@ Polygon::Vertex Polygon::position() {
 bool Polygon::isConvex() {
 
 	// Separate x and y coordinates into two arrays
-	int numOfPoints = numOfCoordinates / 2;
+	int numOfPoints = numOfElements / 2;
 	double* coordX = new double[numOfPoints];
 	double* coordY = new double[numOfPoints];
 
 	for (int i = 0; i < numOfPoints; i++) {
 		coordX[i] = this->coordinates[2 * i];
 		coordY[i] = this->coordinates[2 * i + 1];
+	}
+
+	// Put coordinates in an array of vertices
+	Vertex* coords = new Vertex[numOfPoints];
+	for (int i = 0; i < numOfPoints; i++) {
+		coords[i].x = coordX[i];
+		coords[i].y = coordY[i];
 	}
 
 	/* To know if a polygon is convex I will calculate if the cross products of
@@ -209,13 +216,110 @@ bool Polygon::isConvex() {
 	if (allPositive == numOfPoints || allNegative == numOfPoints)
 		isConvex = true;
 
+	if (FoundIntersection(coords, numOfPoints))
+		isConvex = false;
+
 	delete[] coordX;
 	delete[] coordY;
+	delete[] coords;
 
 	return isConvex;
+}
+
+bool Polygon::IsLineIntersection(Vertex startPoint1, Vertex endPoint1, Vertex startPoint2, Vertex endPoint2) {
+	bool isIntersectionFound = false;
+
+	// The equation for the lines represented as ax + by = c
+	double distVerticalLine1 = endPoint1.y - startPoint1.y;
+	double distHorizontalLine1 = startPoint1.x - endPoint1.x;
+	double line1 = distVerticalLine1 * (startPoint1.x) + distHorizontalLine1 * (startPoint1.y);
+
+	double distVerticalLine2 = endPoint2.y - startPoint2.y;
+	double distHorizontalLine2 = startPoint2.x - endPoint2.x;
+	double line2 = distVerticalLine2 * (startPoint2.x) + distHorizontalLine2 * (startPoint2.y);
+
+	double determinant = distVerticalLine1 * distHorizontalLine2 - distVerticalLine2 * distHorizontalLine1;
+
+	// If the lines are parallell no intersection can exist
+	if (determinant == 0)
+	{
+		isIntersectionFound = false;
+	}
+	else
+	{
+		// If 0 < tA < 1 and 0 < tB < 1 then the line segments intersect
+
+		double intersectionValueLine1 = ((startPoint2.y - endPoint2.y) * (startPoint1.x - startPoint2.x) + (endPoint2.x - startPoint2.x) * (startPoint1.y - startPoint2.y)) /
+										((endPoint2.x - startPoint2.x) * (startPoint1.y - endPoint1.y) - (startPoint1.x - endPoint1.x) * (endPoint2.y - startPoint2.y));
+
+		double intersectionValueLine2 = ((startPoint1.y - endPoint1.y) * (startPoint1.x - startPoint2.x) + (endPoint1.x - startPoint1.x) * (startPoint1.y - startPoint2.y)) /
+										((endPoint2.x - startPoint2.x) * (startPoint1.y - endPoint1.y) - (startPoint1.x - endPoint1.x) * (endPoint2.y - startPoint2.y));
+
+		// Exclude endpoints from interval, therefore interval 0 < t < 1
+		if (intersectionValueLine1 > 0 && intersectionValueLine1 < 1 &&
+			intersectionValueLine2 > 0 && intersectionValueLine2 < 1) {
+			isIntersectionFound = true;
+		}
+	}
+
+	return isIntersectionFound;
+}
+
+bool Polygon::FoundIntersection(Vertex coordinates[], const int size) {
+	bool foundIntersection = false;
+	int j;
+	for (j = 0; j < size && !foundIntersection; j++)
+	{
+		for (int i = 0; i < size - 2 && !foundIntersection; i++)
+		{
+			foundIntersection = IsLineIntersection(coordinates[j], coordinates[j + 1], coordinates[i + 1], coordinates[i + 2]);
+		}
+	}
+
+	// Outer for loop
+	if (!foundIntersection)
+	{
+		foundIntersection = IsLineIntersection(coordinates[j], coordinates[j + 1], coordinates[j], coordinates[size - 1]);
+	}
+
+	return foundIntersection;
 }
 
 double Polygon::distance(Shape& shape) {
 	double distance = abs(sqrt(pow(this->position().x - shape.position().x, 2) + pow(this->position().y - shape.position().y, 2)));
 	return distance;
+}
+
+Polygon& Polygon::operator=(const Polygon& otherPolygon) {
+	if (this != &otherPolygon) {
+		return *this;
+	}
+
+	coordinates = new double[this->numOfElements];
+
+	for (int i = 0; i < this->numOfElements; i++) {
+		this->coordinates[i] = otherPolygon.coordinates[i];
+	}
+	this->numOfElements = otherPolygon.numOfElements;
+
+	return *this;
+}
+
+Polygon& Polygon::operator+(double addCoords[addTwoPoints]) {
+	
+	// Copy over old coordinates
+	this->numOfElements += addTwoPoints;
+	this->tempCoords = new double[this->numOfElements];
+
+	for (int i = 0; i < this->numOfElements; i++)
+		tempCoords[i] = this->coordinates[i];
+	delete[] this->coordinates;
+	this->coordinates = nullptr;
+	this->coordinates = tempCoords;
+
+	// Add point to last index
+	this->coordinates[this->numOfElements - 2] = addCoords[0];
+	this->coordinates[this->numOfElements - 1] = addCoords[1];
+
+	return *this;
 }

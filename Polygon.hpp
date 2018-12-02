@@ -4,7 +4,9 @@
 
 class Polygon : public Shape {
 	double* coordinates;
-	int numOfCoordinates;
+	double* tempCoords;
+	int numOfElements;
+	static const int addTwoPoints = 2;
 
 public:
 	Polygon(double* coordinates);
@@ -17,6 +19,11 @@ public:
 	Vertex position() override;
 	bool isConvex() override;
 	double distance(Shape& shape) override;
+
+	bool IsLineIntersection(Vertex startPoint1, Vertex endPoint1, Vertex startPoint2, Vertex endPoint2);
+	bool FoundIntersection(Vertex coordinates[], const int size);
+	Polygon& operator=(const Polygon& otherPolygon);
+	Polygon& operator+(double coordinates[addTwoPoints]);
 };
 
 #endif
